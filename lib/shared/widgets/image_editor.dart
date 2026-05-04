@@ -123,7 +123,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
-  /// Show WhatsApp-style full color picker dialog with HSL wheel + opacity slider
+  /// Show WhatsApp-style full color picker dialog with HSV wheel + opacity slider
   void _showFullColorPicker() {
     showDialog(
       context: context,
@@ -136,22 +136,17 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // HSL Color Picker Wheel
+                // HSV Color Picker Wheel
                 ColorPicker(
-                  color: tempColor,
+                  pickerColor: tempColor,
                   onColorChanged: (color) {
                     tempColor = color;
                   },
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  heading: Text('Select color', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
-                  subheading: Text('Shade', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
-                  pickColorEnabled: true,
+                  colorPickerWidth: 300,
+                  pickerAreaHeightPercent: 0.7,
                   enableAlpha: false,
+                  paletteType: PaletteType.hsv,
                   displayThumbColor: true,
-                  paletteType: PaletteType.hslWheel,
-                  labelStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 11),
                 ),
               ],
             ),
