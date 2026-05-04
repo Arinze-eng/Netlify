@@ -1,0 +1,29 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+
+// Force all Android library subprojects to use compileSdk 36
+// This fixes "resource android:attr/lStar not found" errors
+// from plugins like isar_flutter_libs that target older SDKs
+subprojects { sub ->
+    sub.plugins.withId("com.android.library") {
+        sub.android {
+            compileSdkVersion 36
+            if (namespace == null || namespace.toString().trim().isEmpty()) {
+                namespace = "cdn.example.${sub.name}"
+            }
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

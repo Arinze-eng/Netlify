@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ─── Helper functions ───
+    
+    // Check if the user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Check if the user ID matches the authenticated user
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    // ─── Profiles ───
+    // Users can read any profile, but only update their own
+    match /profiles/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false; // Profiles cannot be deleted
+    }
+    
+    // ─── Auth Events ───
+    match /auth_events/{eventId} {
+      allow create: if isAuth();
+      allow read: if isAuth() && request.auth.uid == resource.data.user_id;
+      allow update, delete: if false;
+    }
+    
+    // ─── FCM Tokens ───
+    // Users can manage their own FCM tokens for push notifications
+    match /fcm_tokens/{userId} {
+      allow read: if isAuth(); // Any auth user can read (needed for Edge Functions)
+      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // ─── Threads ───
+    match /threads/{threadId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.member_ids;
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid in resource.data.member_ids;
+      allow delete: if false;
+    }
+    
+    // ─── Messages (within threads) ───
+    match /threads/{threadId}/messages/{messageId} {
+      allow read: if isAuth() && request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.member_ids;
+      allow create: if isAuth();
+      allow update: if isAuth() && (request.auth.uid == resource.data.sender_id || request.auth.uid == resource.data.receiver_id);
+      allow delete: if false;
+    }
+    
+    // ─── Inbox (unread tracking) ───
+    match /inbox/{userId}/unread/{messageId} {
+      allow read: if isOwner(userId);
+      allow write: if isAuth(); // Written by message sender
+      allow delete: if isOwner(userId);
+    }
+    
+    // ─── Typing Indicators ───
+    match /typing/{typingId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+      allow delete: if isAuth();
+    }
+    
+    // ─── Call Signals ───
+    match /call_signals/{signalId} {
+      allow read: if isAuth() && (request.auth.uid == resource.data.from_id || request.auth.uid == resource.data.to_id);
+      allow create: if isAuth();
+      allow delete: if isAuth() && (request.auth.uid == resource.data.from_id || request.auth.uid == resource.data.to_id);
+      allow update: if false;
+    }
+    
+    // ─── Call History ───
+    match /call_history/{callId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.participants;
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+    
+    // ─── Blocks ───
+    match /blocks/{blockId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow delete: if isAuth() && request.auth.uid == resource.data.blocker_id;
+      allow update: if false;
+    }
+    
+    // ─── Status (Stories) ───
+    match /status/{statusId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid == resource.data.user_id;
+      allow delete: if isAuth() && request.auth.uid == resource.data.user_id;
+      
+      // Status views
+      match /views/{viewId} {
+        allow read: if isAuth() && request.auth.uid == get(/databases/$(database)/documents/status/$(statusId)).data.user_id;
+        allow create: if isAuth();
+        allow update, delete: if false;
+      }
+      
+      // Status likes
+      match /likes/{likeId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow delete: if isAuth() && request.auth.uid == resource.data.user_id;
+        allow update: if false;
+      }
+      
+      // Status replies
+      match /replies/{replyId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow delete: if isAuth() && request.auth.uid == resource.data.user_id;
+        allow update: if false;
+      }
+    }
+    
+    // ─── Status Privacy ───
+    match /status_privacy/{userId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
+    }
+    
+    // ─── Groups ───
+    match /groups/{groupId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid in resource.data.member_ids;
+      allow delete: if isAuth() && request.auth.uid == resource.data.created_by;
+      
+      // Group messages
+      match /messages/{messageId} {
+        allow read: if isAuth() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.member_ids;
+        allow create: if isAuth() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.member_ids;
+        allow update: if isAuth() && request.auth.uid == resource.data.sender_id;
+        allow delete: if isAuth() && request.auth.uid == resource.data.sender_id;
+      }
+    }
+    
+    // ─── Media Cleanup ───
+    match /media_cleanup/{cleanupId} {
+      allow create: if isAuth();
+      allow read, update, delete: if false;
+    }
+    
+    // ─── VPN Config ───
+    match /vpn/{configId} {
+      allow read: if isAuth();
+      allow write: if isAuth(); // Admin-only enforcement handled client-side with secret
+    }
+  }
+}

@@ -1,0 +1,19 @@
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- Match the app's dark blue gradient background to eliminate brown flash -->
+        <item name="android:windowBackground">@color/launch_background</item>
+    </style>
+
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/launch_background</item>
+    </style>
+
+    <!-- Image Cropper Theme -->
+    <style name="Theme.ImageCropper" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:statusBarColor">#0F2027</item>
+        <item name="android:navigationBarColor">#0F2027</item>
+        <item name="colorPrimary">#6366F1</item>
+        <item name="colorPrimaryDark">#4F46E5</item>
+        <item name="colorAccent">#6366F1</item>
+    </style>
+</resources>

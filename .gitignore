@@ -1,0 +1,19 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Android
+android/local.properties
+android/app/src/main/java/io/flutter/plugins/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Temp files
+tmp_*.json
+tmp_*.sql
+build_output/

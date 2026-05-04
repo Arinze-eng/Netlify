@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Match the app's gradient start color to eliminate brown flash -->
+    <color name="launch_background">#0F2027</color>
+    <!-- Accent color for FCM default notification -->
+    <color name="accent">#2AABEE</color>
+</resources>

@@ -1,0 +1,116 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+import 'core/splash_screen.dart';
+import 'services/vpn_manager.dart';
+import 'services/notification_service.dart';
+import 'services/background_message_poller.dart';
+import 'services/supabase_service.dart';
+import 'services/fcm_service.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Firebase initialization (FCM push notifications) ──
+  // [UPDATE #4] Firebase Cloud Messaging for real-time notifications
+  // even when app is closed/terminated
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // ── Supabase initialization (serverless transport/signaling only) ──
+  // Supabase acts as a blob/serverless layer:
+  //   • Real-time signaling for chat, typing, calls
+  //   • Temporary media transport (auto-deleted from cloud after 3h)
+  //   • All messages, files, and media are stored PERMANENTLY on-device
+  await Supabase.initialize(
+    url: 'https://ljnparociyyggmxdewwv.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqbnBhcm9jaXl5Z2dteGRld3d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Njk3MzYsImV4cCI6MjA5MjU0NTczNn0.Lr4UR7llvzC9QxQIwOGdRxn4-2hyRgqYXAnfDRC1-C8',
+  );
+
+  // ── Local notification channels ──
+  await NotificationService.init();
+  await BackgroundMessagePoller.init();
+
+  // ── Firebase Cloud Messaging (real-time push notifications) ──
+  // [UPDATE #4] Enables notifications even when the app is closed/terminated
+  // FCM token is obtained here but NOT synced to Supabase yet
+  // (no user is logged in at this point).
+  // Token sync happens AFTER sign-in via FcmService().syncTokenToServer()
+  await FcmService().init();
+
+  // [UPDATE #4] Listen for auth state changes and sync FCM token
+  // This ensures the token is always written to Supabase when a user logs in,
+  // even if the initial sign-in flow somehow misses the token sync.
+  Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+    if (event.event == AuthChangeEvent.signedIn && event.session != null) {
+      final userId = event.session!.user.id;
+      debugPrint('Auth state: signed in as $userId — syncing FCM token');
+      FcmService().syncTokenToServer(userId);
+    }
+  });
+
+  // [UPDATE #1] Cleanup expired media from Supabase on app open (3h auto-delete from cloud)
+  // Local copies on device are NEVER deleted
+  try {
+    final supabaseService = SupabaseService();
+    await supabaseService.cleanupExpiredSupabaseMedia();
+  } catch (_) {}
+
+  // *** VPN auto-start immediately on app open ***
+  // Start VPN right away (before UI), subscription enforcement happens when
+  // the user enters ChatListScreen.
+  try {
+    await VpnManager.instance.syncRemoteConfig();
+  } catch (_) {}
+
+  // Fire-and-forget start: don't block app boot.
+  unawaited(VpnManager.instance.autoStartOnAppOpen(ignoreAccessCheck: true));
+
+  runApp(
+    ChangeNotifierProvider.value(
+      value: VpnManager.instance,
+      child: const MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'CDN-NETCHAT',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2AABEE),
+          brightness: Brightness.dark,
+          surface: const Color(0xFF0F1F28),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF0B141A),
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0B141A),
+          foregroundColor: Colors.white,
+          centerTitle: false,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: const Color(0xFF0F1F28),
+          contentTextStyle: GoogleFonts.poppins(color: Colors.white),
+        ),
+      ),
+      home: const SplashScreen(),
+    );
+  }
+}

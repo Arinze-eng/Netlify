@@ -1,0 +1,43 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // ─── Helper functions ───
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    // ─── Chat Media (temporary transport blobs) ───
+    // [UPDATE #1] These are TEMPORARY — auto-deleted after 3 hours (reduced from 10h).
+    // The permanent copy lives on the user's device.
+    match /chat_media/{userId}/{mediaId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // ─── Files (temporary transport blobs) ───
+    // [UPDATE #1] Auto-deleted after 3 hours. Device copy is permanent.
+    match /files/{userId}/{fileId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // ─── Status Media (temporary transport blobs) ───
+    // [UPDATE #1] Auto-deleted after 3 hours. Device copy is permanent.
+    match /status/{userId}/{mediaId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,91 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Extract third-party packages
+        run: |
+          if [ -f third_party/device_apps-2.2.0.tar.gz ]; then
+            cd third_party && tar xzf device_apps-2.2.0.tar.gz && cd ..
+          fi
+      
+      - name: Build APK (release with minification + split-per-abi + tree-shake-icons)
+        # [UPDATE #5] Build with --split-per-abi for smaller APKs
+        # --tree-shake-icons removes unused icon fonts
+        # --shrink strips unused code
+        # This generates separate APKs per CPU architecture
+        # arm64-v8a APK should be well under 40MB
+        run: flutter build apk --release --split-per-abi --tree-shake-icons
+      
+      - name: Find APK files
+        id: find_apk
+        run: |
+          echo "APK files found:"
+          find build/app/outputs/flutter-apk/ -name "*.apk" -type f
+          
+          # Get the arm64-v8a APK (most common for modern phones)
+          ARM64_APK=$(find build/app/outputs/flutter-apk/ -name "*arm64-v8a*.apk" -type f | head -1)
+          if [ -n "$ARM64_APK" ]; then
+            echo "arm64_apk=$ARM64_APK" >> $GITHUB_OUTPUT
+            APK_SIZE=$(stat -c%s "$ARM64_APK")
+            APK_SIZE_MB=$(( APK_SIZE / 1024 / 1024 ))
+            echo "ARM64 APK size: ${APK_SIZE_MB} MB"
+            if [ "$APK_SIZE_MB" -gt 40 ]; then
+              echo "⚠️ WARNING: APK size (${APK_SIZE_MB} MB) exceeds 40MB target!"
+            else
+              echo "✅ APK size (${APK_SIZE_MB} MB) is within 40MB target"
+            fi
+          fi
+          
+          # Get the armeabi-v7a APK (for older phones)
+          ARM_APK=$(find build/app/outputs/flutter-apk/ -name "*armeabi-v7a*.apk" -type f | head -1)
+          if [ -n "$ARM_APK" ]; then
+            echo "arm_apk=$ARM_APK" >> $GITHUB_OUTPUT
+            ARM_SIZE=$(stat -c%s "$ARM_APK")
+            echo "ARM APK size: $(( ARM_SIZE / 1024 / 1024 )) MB"
+          fi
+      
+      - name: Upload arm64-v8a APK (primary)
+        uses: actions/upload-artifact@v4
+        if: steps.find_apk.outputs.arm64_apk != ''
+        with:
+          name: cdn-netchat-apk-arm64
+          path: ${{ steps.find_apk.outputs.arm64_apk }}
+      
+      - name: Upload armeabi-v7a APK
+        uses: actions/upload-artifact@v4
+        if: steps.find_apk.outputs.arm_apk != ''
+        with:
+          name: cdn-netchat-apk-armv7
+          path: ${{ steps.find_apk.outputs.arm_apk }}
+      
+      - name: Upload all APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdn-netchat-apk-all-abis
+          path: build/app/outputs/flutter-apk/*.apk
