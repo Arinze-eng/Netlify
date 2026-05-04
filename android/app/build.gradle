@@ -13,16 +13,16 @@ android {
         applicationId "cdn.example.cdn_chatroom"
         minSdk 24
         targetSdk 36
-        versionCode 17
-        versionName "3.2.1"
+        versionCode 18
+        versionName "3.3.0"
         multiDexEnabled true
     }
 
     buildTypes {
         release {
             signingConfig signingConfigs.debug
-            // [UPDATE #5] Enable minification, shrinking, and obfuscation to reduce APK size
-            // Target: APK under 40MB
+            // Enable minification, shrinking, and obfuscation to reduce APK size
+            // Target: APK under 40MB per ABI split
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
@@ -39,7 +39,7 @@ android {
         jvmTarget = "17"
     }
 
-    // [UPDATE #5] Split by ABI to reduce APK size significantly
+    // Split by ABI to reduce APK size significantly
     // Generates separate APKs per CPU architecture instead of one fat APK
     splits {
         abi {
@@ -50,7 +50,7 @@ android {
         }
     }
 
-    // [UPDATE #5] Optimize packaging
+    // Optimize packaging — strip unnecessary meta files
     packagingOptions {
         resources {
             excludes += [

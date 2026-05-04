@@ -6,7 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import 'core/splash_screen.dart';
+import 'core/vpn_splash_screen.dart';
 import 'services/vpn_manager.dart';
 import 'services/notification_service.dart';
 import 'services/background_message_poller.dart';
@@ -19,6 +19,7 @@ void main() async {
 
   // ── VPN auto-start FIRST (before anything else) ──
   // VPN starts immediately so users without data get internet access.
+  // The VpnSplashScreen will show while VPN connects.
   // Premium checking happens AFTER the app loads (in ChatListScreen).
   // This is critical: people relying on VPN for internet can't wait for
   // Firebase/Supabase to initialize first.
@@ -99,7 +100,10 @@ class MyApp extends StatelessWidget {
           contentTextStyle: GoogleFonts.poppins(color: Colors.white),
         ),
       ),
-      home: const SplashScreen(),
+      // ── VPN Splash is the FIRST screen ──
+      // Flow: VpnSplashScreen → SplashScreen → AuthWrapper → App
+      // VPN must load first to give users internet before entering the app.
+      home: const VpnSplashScreen(),
     );
   }
 }

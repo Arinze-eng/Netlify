@@ -211,6 +211,60 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> _removeTrial(String userId) async {
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF203A43),
+            title: Text('Remove Trial?', style: GoogleFonts.poppins(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This will immediately expire the user\'s trial period. They will need a premium subscription to continue using the app.',
+                  style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'User ID:\n$userId',
+                  style: GoogleFonts.poppins(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Remove Trial'),
+              )
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!ok) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await _supabase.adminRemoveTrial(secret: _passwordController.text.trim(), userId: userId);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _setBlocked(String userId, bool blocked) async {
     final reasonCtrl = TextEditingController();
 
@@ -601,6 +655,20 @@ class _AdminScreenState extends State<AdminScreen> {
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Remove Trial button — admin can remove trial from any user
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 40,
+                                      child: OutlinedButton(
+                                        onPressed: _loading ? null : () => _removeTrial(id),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.orangeAccent,
+                                          side: BorderSide(color: Colors.orangeAccent.withOpacity(0.6)),
+                                        ),
+                                        child: const Text('Remove Trial'),
+                                      ),
                                     ),
                                   ],
                                 )

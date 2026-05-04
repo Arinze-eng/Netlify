@@ -34,10 +34,19 @@ jobs:
             cd third_party && tar xzf device_apps-2.2.0.tar.gz && cd ..
           fi
       
+      - name: Verify APK size target
+        run: |
+          echo "Build configuration:"
+          echo "- ABI split: armeabi-v7a, arm64-v8a, x86_64"
+          echo "- Minification: enabled (R8/ProGuard)"
+          echo "- Resource shrinking: enabled"
+          echo "- Tree-shake icons: enabled"
+          echo "- Target max APK size: 40MB per ABI"
+      
       - name: Build APK (release with minification + split-per-abi + tree-shake-icons)
         run: flutter build apk --release --split-per-abi --tree-shake-icons
       
-      - name: Find APK files
+      - name: Find and validate APK files
         id: find_apk
         run: |
           echo "APK files found:"
@@ -52,6 +61,7 @@ jobs:
             echo "ARM64 APK size: ${APK_SIZE_MB} MB"
             if [ "$APK_SIZE_MB" -gt 40 ]; then
               echo "⚠️ WARNING: APK size (${APK_SIZE_MB} MB) exceeds 40MB target!"
+              echo "::warning::ARM64 APK size (${APK_SIZE_MB} MB) exceeds 40MB target"
             else
               echo "✅ APK size (${APK_SIZE_MB} MB) is within 40MB target"
             fi

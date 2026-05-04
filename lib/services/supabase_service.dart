@@ -1458,6 +1458,15 @@ class SupabaseService {
       'p_reason': reason,
     });
   }
+
+  /// Admin: Remove trial from a user — immediately expires their trial period.
+  /// The user will need premium subscription to continue using app features.
+  Future<void> adminRemoveTrial({required String secret, required String userId}) async {
+    await _client.rpc('admin_remove_trial', params: {
+      'p_secret': secret,
+      'p_user_id': userId,
+    });
+  }
 }
 
 /// String extension for capitalize

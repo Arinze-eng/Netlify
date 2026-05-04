@@ -17,3 +17,9 @@ android/app/src/main/java/io/flutter/plugins/
 tmp_*.json
 tmp_*.sql
 build_output/
+
+# Firebase — do NOT push Firebase config to GitHub
+# Rules files (firestore.rules, storage.rules) are kept for reference
+# but actual deployment should be done via Firebase CLI locally
+android/app/google-services.json
+lib/firebase_options.dart

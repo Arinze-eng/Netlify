@@ -5,13 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_wrapper.dart';
-import '../services/vpn_manager.dart';
 import '../services/supabase_service.dart';
 
-/// Splash screen that shows the app logo while VPN initializes.
-/// VPN starts IMMEDIATELY when the logo shows (no premium gate on splash).
-/// Premium checking happens after the app loads (in ChatListScreen).
-/// This ensures users without data get VPN internet access right away.
+/// Splash screen that shows the app logo.
+/// VPN has already been initialized in VpnSplashScreen before this screen.
+/// This screen shows branding briefly and then proceeds to auth.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -36,12 +34,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateAfterSplash() async {
-    // VPN was already kicked off in main.dart BEFORE Firebase/Supabase init.
-    // It's already connecting by the time this splash screen renders.
-    // We just show the logo briefly and proceed.
-
-    // Brief splash visibility for branding
-    await Future.delayed(const Duration(milliseconds: 1800));
+    // Brief splash visibility for branding (VPN already connected in VpnSplashScreen)
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     if (!mounted) return;
     _navigateToApp();
@@ -88,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 3),
-                // App Logo / Icon — shown immediately and sharp
+                // App Logo / Icon
                 Container(
                   width: 120,
                   height: 120,
@@ -126,69 +120,16 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const Spacer(flex: 2),
-                // VPN Status Indicator — shows VPN is connecting/connected
-                ListenableBuilder(
-                  listenable: VpnManager.instance,
-                  builder: (context, _) {
-                    final vm = VpnManager.instance;
-                    String statusText;
-                    Color statusColor;
-
-                    if (vm.isActive) {
-                      statusText = 'VPN Connected ✓';
-                      statusColor = Colors.greenAccent;
-                    } else if (vm.isStarting) {
-                      statusText = 'Connecting VPN...';
-                      statusColor = const Color(0xFF2AABEE);
-                    } else if (vm.lastError != null) {
-                      statusText = 'VPN: Tap to connect';
-                      statusColor = Colors.orangeAccent;
-                    } else {
-                      statusText = 'Initializing...';
-                      statusColor = Colors.white38;
-                    }
-
-                    return Column(
-                      children: [
-                        // Pulsing dot
-                        FadeTransition(
-                          opacity: _animController,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: statusColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: statusColor.withOpacity(0.5),
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          statusText,
-                          style: GoogleFonts.poppins(
-                            color: statusColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
                 // Loading indicator
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF6366F1),
+                FadeTransition(
+                  opacity: _animController,
+                  child: const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF6366F1),
+                    ),
                   ),
                 ),
                 const Spacer(flex: 1),
