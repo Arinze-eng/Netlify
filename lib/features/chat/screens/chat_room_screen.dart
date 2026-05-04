@@ -376,33 +376,40 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
     String imagePath = picked.path;
 
     if (action == 'crop') {
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: picked.path,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Image',
-            toolbarColor: const Color(0xFF6366F1),
-            toolbarWidgetColor: Colors.white,
-            backgroundColor: const Color(0xFF0F2027),
-            aspectRatioPresets: [
-              CropAspectRatioPreset.original,
-              CropAspectRatioPreset.square,
-              CropAspectRatioPreset.ratio3x2,
-              CropAspectRatioPreset.ratio4x3,
-              CropAspectRatioPreset.ratio16x9,
-            ],
-            initAspectRatio: CropAspectRatioPreset.original,
-            lockAspectRatio: false,
-            hideBottomControls: false,
-            showCropGrid: true,
-            cropGridColor: Colors.white24,
-            cropGridColumnCount: 3,
-            cropGridRowCount: 3,
-          ),
-        ],
-      );
-      if (cropped == null) return; // User cancelled crop
-      imagePath = cropped.path;
+      CroppedFile? cropped;
+      try {
+        cropped = await ImageCropper().cropImage(
+          sourcePath: picked.path,
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Crop Image',
+              toolbarColor: const Color(0xFF6366F1),
+              toolbarWidgetColor: Colors.white,
+              backgroundColor: const Color(0xFF0F2027),
+              aspectRatioPresets: [
+                CropAspectRatioPreset.original,
+                CropAspectRatioPreset.square,
+                CropAspectRatioPreset.ratio3x2,
+                CropAspectRatioPreset.ratio4x3,
+                CropAspectRatioPreset.ratio16x9,
+              ],
+              initAspectRatio: CropAspectRatioPreset.original,
+              lockAspectRatio: false,
+              hideBottomControls: false,
+              showCropGrid: true,
+              cropGridColor: Colors.white24,
+              cropGridColumnCount: 3,
+              cropGridRowCount: 3,
+            ),
+          ],
+        );
+      } catch (e) {
+        // Cropper crashed — use original image as fallback
+        debugPrint('ImageCropper error (using original): $e');
+      }
+      if (cropped != null) {
+        imagePath = cropped.path;
+      }
 
       // After crop, offer to draw/text on the cropped image
       final editAfterCrop = await showDialog<bool>(

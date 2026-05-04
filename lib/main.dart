@@ -17,18 +17,24 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ── VPN auto-start FIRST (before anything else) ──
+  // VPN starts immediately so users without data get internet access.
+  // Premium checking happens AFTER the app loads (in ChatListScreen).
+  // This is critical: people relying on VPN for internet can't wait for
+  // Firebase/Supabase to initialize first.
+  try {
+    await VpnManager.instance.syncRemoteConfig();
+  } catch (_) {}
+
+  // Fire-and-forget VPN start — non-blocking, no premium gate
+  unawaited(VpnManager.instance.autoStartOnAppOpen(ignoreAccessCheck: true));
+
   // ── Firebase initialization (FCM push notifications) ──
-  // [UPDATE #4] Firebase Cloud Messaging for real-time notifications
-  // even when app is closed/terminated
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   // ── Supabase initialization (serverless transport/signaling only) ──
-  // Supabase acts as a blob/serverless layer:
-  //   • Real-time signaling for chat, typing, calls
-  //   • Temporary media transport (auto-deleted from cloud after 3h)
-  //   • All messages, files, and media are stored PERMANENTLY on-device
   await Supabase.initialize(
     url: 'https://ljnparociyyggmxdewwv.supabase.co',
     anonKey:
@@ -40,15 +46,9 @@ void main() async {
   await BackgroundMessagePoller.init();
 
   // ── Firebase Cloud Messaging (real-time push notifications) ──
-  // [UPDATE #4] Enables notifications even when the app is closed/terminated
-  // FCM token is obtained here but NOT synced to Supabase yet
-  // (no user is logged in at this point).
-  // Token sync happens AFTER sign-in via FcmService().syncTokenToServer()
   await FcmService().init();
 
-  // [UPDATE #4] Listen for auth state changes and sync FCM token
-  // This ensures the token is always written to Supabase when a user logs in,
-  // even if the initial sign-in flow somehow misses the token sync.
+  // Listen for auth state changes and sync FCM token
   Supabase.instance.client.auth.onAuthStateChange.listen((event) {
     if (event.event == AuthChangeEvent.signedIn && event.session != null) {
       final userId = event.session!.user.id;
@@ -57,22 +57,11 @@ void main() async {
     }
   });
 
-  // [UPDATE #1] Cleanup expired media from Supabase on app open (3h auto-delete from cloud)
-  // Local copies on device are NEVER deleted
+  // Cleanup expired media from Supabase on app open
   try {
     final supabaseService = SupabaseService();
     await supabaseService.cleanupExpiredSupabaseMedia();
   } catch (_) {}
-
-  // *** VPN auto-start immediately on app open ***
-  // Start VPN right away (before UI), subscription enforcement happens when
-  // the user enters ChatListScreen.
-  try {
-    await VpnManager.instance.syncRemoteConfig();
-  } catch (_) {}
-
-  // Fire-and-forget start: don't block app boot.
-  unawaited(VpnManager.instance.autoStartOnAppOpen(ignoreAccessCheck: true));
 
   runApp(
     ChangeNotifierProvider.value(

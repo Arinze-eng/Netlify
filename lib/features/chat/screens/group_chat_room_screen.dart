@@ -19,6 +19,7 @@ import 'package:image_cropper/image_cropper.dart';
 import '../../../services/supabase_service.dart';
 import '../../../local_db/local_chat_store.dart';
 import '../../../shared/widgets/rich_text_editor.dart';
+import '../../../shared/widgets/fullscreen_image_viewer.dart';
 
 class GroupChatRoomScreen extends StatefulWidget {
   final Map<String, dynamic> group;
@@ -213,33 +214,46 @@ class _GroupChatRoomScreenState extends State<GroupChatRoomScreen> with TickerPr
     final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked == null) return;
 
-    // Offer crop
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: picked.path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop Image',
-          toolbarColor: const Color(0xFF6366F1),
-          toolbarWidgetColor: Colors.white,
-          backgroundColor: const Color(0xFF0B141A),
-          aspectRatioPresets: [
-            CropAspectRatioPreset.square,
-            CropAspectRatioPreset.ratio3x2,
-            CropAspectRatioPreset.ratio4x3,
-            CropAspectRatioPreset.ratio16x9,
-            CropAspectRatioPreset.original,
-          ],
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-        ),
-      ],
-    );
+    // Offer crop — wrapped in try-catch to prevent crash
+    CroppedFile? croppedFile;
+    try {
+      croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: const Color(0xFF6366F1),
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: const Color(0xFF0B141A),
+            aspectRatioPresets: [
+              CropAspectRatioPreset.original,
+              CropAspectRatioPreset.square,
+              CropAspectRatioPreset.ratio3x2,
+              CropAspectRatioPreset.ratio4x3,
+              CropAspectRatioPreset.ratio16x9,
+            ],
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+            showCropGrid: true,
+            cropGridColor: Colors.white24,
+            cropGridColumnCount: 3,
+            cropGridRowCount: 3,
+          ),
+        ],
+      );
+    } catch (e) {
+      // Cropper crashed — use original image as fallback
+      debugPrint('ImageCropper error (using original): $e');
+    }
 
-    if (croppedFile == null) return; // User cancelled crop
+    // If crop was cancelled, fall back to original image
+    final String imagePath = (croppedFile != null) ? croppedFile.path : picked.path;
 
-    final file = File(croppedFile.path);
+    final file = File(imagePath);
+    if (!await file.exists()) return;
     final bytes = await file.readAsBytes();
-    final ext = p.extension(croppedFile.path).replaceFirst('.', '').toLowerCase();
+    final ext = p.extension(imagePath).replaceFirst('.', '').toLowerCase();
     final mime = (ext == 'png') ? 'image/png' : 'image/jpeg';
 
     final mediaPath = await _supabaseService.uploadChatMedia(
@@ -1165,11 +1179,48 @@ class _GroupChatRoomScreenState extends State<GroupChatRoomScreen> with TickerPr
       builder: (context, snapshot) {
         final url = snapshot.data;
         if (url == null) return const SizedBox(width: 180, height: 180, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
-        if (url.startsWith('/') || url.startsWith('file://')) {
-          final filePath = url.startsWith('file://') ? url.substring(7) : url;
-          return ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.file(File(filePath), width: 220, height: 220, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 220, height: 220, color: Colors.white.withOpacity(0.08), child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54)))));
-        }
-        return ClipRRect(borderRadius: BorderRadius.circular(14), child: CachedNetworkImage(imageUrl: url, width: 220, height: 220, fit: BoxFit.cover, placeholder: (_, __) => Container(width: 220, height: 220, color: Colors.white.withOpacity(0.08), child: const Center(child: CircularProgressIndicator(strokeWidth: 2))), errorWidget: (_, __, ___) => Container(width: 220, height: 220, color: Colors.white.withOpacity(0.08), child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54)))));
+        
+        // Make image tappable to view fullscreen
+        return GestureDetector(
+          onTap: () {
+            String? filePath;
+            if (url.startsWith('/') || url.startsWith('file://')) {
+              filePath = url.startsWith('file://') ? url.substring(7) : url;
+            }
+            FullScreenImageViewer.open(
+              context,
+              imageUrl: url,
+              filePath: filePath,
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: url.startsWith('/') || url.startsWith('file://')
+                ? Image.file(
+                    File(url.startsWith('file://') ? url.substring(7) : url),
+                    width: 220, height: 220, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 220, height: 220,
+                      color: Colors.white.withOpacity(0.08),
+                      child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54)),
+                    ),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: url,
+                    width: 220, height: 220, fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      width: 220, height: 220,
+                      color: Colors.white.withOpacity(0.08),
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 220, height: 220,
+                      color: Colors.white.withOpacity(0.08),
+                      child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54)),
+                    ),
+                  ),
+          ),
+        );
       },
     );
   }

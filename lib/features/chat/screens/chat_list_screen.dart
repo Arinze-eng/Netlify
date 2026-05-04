@@ -180,6 +180,8 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
       // Enforce subscription when entering chat list.
       // VPN starts immediately on app open, but if user has no access we stop VPN
       // and redirect to Payment.
+      // Refresh VPN access status now that we know the user's subscription state
+      await VpnManager.instance.refreshVpnAccess();
       if (!hasAccess) {
         try { await VpnManager.instance.stop(); } catch (_) {}
         if (mounted) {

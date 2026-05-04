@@ -32,23 +32,16 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
-    _startVpnAndNavigate();
+    _navigateAfterSplash();
   }
 
-  Future<void> _startVpnAndNavigate() async {
-    // VPN was already kicked off in main.dart as fire-and-forget.
-    // Here we wait briefly for it to connect, but DO NOT block on premium.
-    // The VPN starts immediately — premium is checked later in ChatListScreen.
-    try {
-      await VpnManager.instance.autoStartOnAppOpen(ignoreAccessCheck: true).timeout(
-            const Duration(seconds: 6),
-          );
-    } catch (_) {
-      // VPN failed or timed out — proceed to app anyway
-    }
+  Future<void> _navigateAfterSplash() async {
+    // VPN was already kicked off in main.dart BEFORE Firebase/Supabase init.
+    // It's already connecting by the time this splash screen renders.
+    // We just show the logo briefly and proceed.
 
-    // Brief splash visibility for branding (logo is shown sharp immediately)
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Brief splash visibility for branding
+    await Future.delayed(const Duration(milliseconds: 1800));
 
     if (!mounted) return;
     _navigateToApp();

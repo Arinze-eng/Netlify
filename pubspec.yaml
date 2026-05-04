@@ -1,6 +1,6 @@
 name: cdn_chatroom
 description: A premium offline chatting app with in-app VPN, Supabase serverless, and Firebase push notifications.
-version: 3.2.0+16
+version: 3.2.1+17
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -56,6 +56,9 @@ dependencies:
   # File attachments
   file_picker: ^8.0.3
   open_filex: ^4.6.0
+
+  # Color picker for image editor (WhatsApp-style HSL wheel)
+  flutter_colorpicker: ^1.1.0
 
   # Share files, images, voice notes externally
   share_plus: ^12.0.2
