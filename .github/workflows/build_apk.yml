@@ -35,11 +35,6 @@ jobs:
           fi
       
       - name: Build APK (release with minification + split-per-abi + tree-shake-icons)
-        # [UPDATE #5] Build with --split-per-abi for smaller APKs
-        # --tree-shake-icons removes unused icon fonts
-        # --shrink strips unused code
-        # This generates separate APKs per CPU architecture
-        # arm64-v8a APK should be well under 40MB
         run: flutter build apk --release --split-per-abi --tree-shake-icons
       
       - name: Find APK files
@@ -89,3 +84,19 @@ jobs:
         with:
           name: cdn-netchat-apk-all-abis
           path: build/app/outputs/flutter-apk/*.apk
+
+  # Deploy Firebase rules (only runs if FIREBASE_TOKEN secret is set)
+  deploy-firebase:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.FIREBASE_TOKEN != '' }}
+    needs: []
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Firebase Rules
+        uses: w9jds/firebase-action@v13.6.0
+        with:
+          args: deploy --only firestore:rules,storage --project cdnnetchat-7db90
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
