@@ -85,16 +85,16 @@ jobs:
           name: cdn-netchat-apk-all-abis
           path: build/app/outputs/flutter-apk/*.apk
 
-  # Deploy Firebase rules (only runs if FIREBASE_TOKEN secret is set)
+  # Deploy Firebase rules (requires FIREBASE_TOKEN repo secret)
   deploy-firebase:
     runs-on: ubuntu-latest
-    if: ${{ secrets.FIREBASE_TOKEN != '' }}
-    needs: []
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy Firebase Rules
+        if: ${{ secrets.FIREBASE_TOKEN }}
         uses: w9jds/firebase-action@v13.6.0
         with:
           args: deploy --only firestore:rules,storage --project cdnnetchat-7db90
